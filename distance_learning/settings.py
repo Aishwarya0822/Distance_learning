@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework_simplejwt',
     'job_portal',
     'student_management'
 ]
@@ -133,4 +135,17 @@ AISENSY_CAMPAIGNS = {
     'NEW_CAMPAIGN': '',
     'EXAM_DETAILS': '',
     # Add other campaigns as needed
+}
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+}
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=100),  # 1 hour
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=356),     # 7 days
+    'ROTATE_REFRESH_TOKENS': True,
 }
