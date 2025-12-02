@@ -26,9 +26,11 @@ from student_management import views
 urlpatterns = [
   path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
   path('login/',views.login_view,name="login" ),
+  path('create-user/',views.create_user,name="create_user" ),
   path('universities/', views.add_university, name='university_list'),  # For GET and POST
   path('universities/<int:university_id>/',views.university_detail,name='university_detail'),# For GET,PUT DELETE
-  path('create-user/',views.create_user,name="create_user" ),
+  path('universities-courses/', views.universities_with_courses, name='universities_with_courses'),
+  
   
   path('create-semester-fees/',views.create_semester_fees,name="create_semester_fees" ),
   path('create-year-fees/', views.create_year_fees, name='create_year_fees'),
@@ -57,7 +59,7 @@ urlpatterns = [
   path('get-student-course-details/<int:student_id>/',views.get_student_course_details,name='get_student_course_details'),
   path('update-student-course-details/<int:student_id>/',views.update_student_course_details, name='update_student_course_details'),
   # get all courses with there respective university
-  path('universities-courses/', views.universities_with_courses, name='universities_with_courses'),
+ 
   path('update-course/<int:course_id>/',views.update_course, name='update_course'),
   path('streams/<int:course_id>/', views.get_stream_by_course_two, name='get-stream-by-course'),
   path('update-streams/<int:course_id>/', views.update_streams_by_course, name='update-streams-by-course'),  

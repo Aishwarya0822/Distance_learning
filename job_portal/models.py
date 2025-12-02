@@ -1,5 +1,10 @@
 from django.db import models
 from student_management.models import *
+from django.db import models
+from django.conf import settings
+from django.utils import timezone
+from django.urls import reverse
+
 # Create your models here.
 
 #---------------job portal--------------------------------------
@@ -189,7 +194,7 @@ class Industry(models.Model):
 
 class JobPost(models.Model):
     company_name = models.CharField(max_length=250)
-    posted_by = models.ForeignKey("User", on_delete=models.CASCADE)
+    posted_by = models.ForeignKey(User, on_delete=models.CASCADE)
     job_title = models.CharField(max_length=255)
     job_location = models.CharField(max_length=255)
     min_experience = models.IntegerField(null=True, blank=True)
@@ -228,11 +233,4 @@ class JobPost(models.Model):
         
 
 
-
-
-# super_admin/models.py
-from django.db import models
-from django.conf import settings
-from django.utils import timezone
-from django.urls import reverse
 

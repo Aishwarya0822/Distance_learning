@@ -59,8 +59,6 @@ urlpatterns = [
   # Department Master APIs
   path('departments/', views.jobport_department_list_create, name='jobport-department-list-create'),
   path('departments/<int:pk>/', views.jobport_department_detail, name='jobport-department-detail'),
-  
-  
-  
+
   
 ]
