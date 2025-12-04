@@ -3,8 +3,8 @@ import time
 import logging
 from django.utils import timezone
 from django.db import connection
-from super_admin.services.google_drive_service import GoogleDriveService
-from super_admin.services.sync_service import DriveSyncService
+from .google_drive_service import GoogleDriveService
+from .sync_service import DriveSyncService
 
 logger = logging.getLogger(__name__)
 

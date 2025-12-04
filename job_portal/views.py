@@ -1,15 +1,19 @@
 from django.shortcuts import render
 
+from rest_framework.views import APIView
+from rest_framework import status, permissions
+from django.db.models import Count, Exists, OuterRef, BooleanField, Value
 # Create your views here.
 from django.utils.text import slugify
 from django.contrib.auth import get_user_model
 from datetime import datetime
 from rest_framework.permissions import AllowAny
 from django.contrib.auth.hashers import check_password
+from django.core.mail import send_mail 
 from django.utils import timezone
 from .models import *
 from .serializers import *
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes,parser_classes
 from io import BytesIO  
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -18,7 +22,7 @@ from django.utils.timezone import now
 from django.utils.timezone import make_aware, is_naive
 from django.db.models import Exists, OuterRef
 from django.db.models import OuterRef, Exists, Value, BooleanField
-
+from services.aisensy import send_aisensy_message, AiSensyError, build_new_campaign_params, build_exam_details_params
 
 logger = logging.getLogger(__name__)
 logger = logging.getLogger('student_registration')
@@ -166,6 +170,161 @@ def register_job_seeker(request):
             'message': 'Registration failed',
             'error': 'Server error'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def authenticate_job_seeker(request):
+    """Authenticate job seeker and return tokens"""
+    email = request.data.get('email')
+    password = request.data.get('password')
+
+    if not email or not password:
+        return Response({"error": "Email and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # Check if the job seeker exists
+        job_seeker = JobSeeker.objects.get(email=email)
+        
+        # Verify password
+        if not check_password(password, job_seeker.password):
+            return Response({"error": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Update last login time
+        job_seeker.last_login = datetime.now()
+        job_seeker.save()
+        
+        # Generate refresh and access tokens
+        refresh = RefreshToken.for_user(job_seeker)  # No need for 'user', we are using JobSeeker
+        access_token = str(refresh.access_token)
+        
+        return Response({
+            'access_token': access_token,
+            'refresh_token': str(refresh),
+            'profile': {
+                'id': job_seeker.id,
+                'full_name': job_seeker.full_name,
+                'email': job_seeker.email,
+                'mobile': job_seeker.mobile,
+                'work_status': job_seeker.work_status,
+                'resume': job_seeker.resume.url if job_seeker.resume else None,
+                'created_at': job_seeker.created_at,
+                'updated_at': job_seeker.updated_at
+            }
+        }, status=status.HTTP_200_OK)
+    
+    except JobSeeker.DoesNotExist:
+        return Response({"error": "Job seeker not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        logger.error(f"Error during login: {str(e)}")
+        return Response({"error": "An error occurred during login. Please try again."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def view_application_resume(request, application_id):
+    try:
+        try:
+            application = JobSeekerApplication.objects.get(id=application_id)
+        except JobSeekerApplication.DoesNotExist:
+            return Response({"error": "Application not found"}, status=status.HTTP_404_NOT_FOUND)
+        if request.user.role.name != 'HR' or application.job_post.posted_by != request.user:
+            return Response({"error": "You are not authorized to view this resume"}, 
+                          status=status.HTTP_403_FORBIDDEN)
+
+        if not application.resume:
+            return Response({"error": "No resume attached to this application"}, 
+                          status=status.HTTP_404_NOT_FOUND)
+
+        application.mark_resume_viewed()
+
+        try:
+            return FileResponse(application.resume.open(), as_attachment=True)
+        except FileNotFoundError:
+            return Response({"error": "Resume file not found"}, 
+                          status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        logger.error(f"Error viewing resume: {str(e)}")
+        return Response({"error": "An error occurred while viewing the resume"}, 
+                      status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_application_status(request, application_id):
+    try:
+        # Get application
+        try:
+            application = JobApplication.objects.get(id=application_id)
+        except JobApplication.DoesNotExist:
+            return Response({"error": "Application not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check if user is HR and owns the job post
+        if request.user.role.name != 'HR' or application.job_post.posted_by != request.user:
+            return Response({"error": "You are not authorized to update this application"}, 
+                          status=status.HTTP_403_FORBIDDEN)
+
+        # Get new status from request
+        new_status = request.data.get('status')
+        if not new_status:
+            return Response({"error": "Status is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Update status
+        try:
+            application.update_status(new_status)
+            if 'note' in request.data:
+                application.notes = request.data['note']
+                application.save()
+            return Response(JobApplicationHRSerializer(application).data)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:
+        logger.error(f"Error updating application status: {str(e)}")
+        return Response({"error": "An error occurred while updating the application status"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_job_applications(request):
+    try:
+        if request.user.role.name == 'HR':
+            # HR can see all applications for their job posts
+            applications = JobApplication.objects.filter(
+                job_post__posted_by=request.user
+            ).order_by('-application_date')
+            serializer = JobApplicationHRSerializer(applications, many=True)
+        else:
+            try:
+                job_seeker = JobSeeker.objects.get(email=request.user.email)
+            except JobSeeker.DoesNotExist:
+                return Response({"error": "Job seeker profile not found"}, 
+                              status=status.HTTP_404_NOT_FOUND)
+                
+            applications = JobApplication.objects.filter(
+                job_seeker=job_seeker
+            ).order_by('-application_date')
+            serializer = JobApplicationSerializer(applications, many=True)
+            
+        return Response(serializer.data)
+        
+    except Exception as e:
+        logger.error(f"Error retrieving applications: {str(e)}")
+        return Response({"error": "An error occurred while retrieving applications"}, 
+                      status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_jobpost_status(request, jobpost_id):
+    try:
+        job_post = JobPost.objects.get(id=jobpost_id)
+    except JobPost.DoesNotExist:
+        return Response({'error': 'Job post not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = JobPostStatusUpdateSerializer(job_post, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({'message': 'Status updated successfully', 'data': serializer.data}, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -524,10 +683,12 @@ def delete_job_post(request, job_post_id):
       
 @api_view(['GET'])
 def get_job_posts(request):
+    
     try:
         logger.info("Job posts retrieval requested")
         job_posts = JobPost.objects.all().order_by('-id') # Only get active job posts
         serializer = JobPostSerializer(job_posts, many=True)
+        print("get_job_posts called")
         logger.info(f"Successfully retrieved {len(job_posts)} job posts.")
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Exception as e:
@@ -1970,9 +2131,6 @@ def delete_jobseeker_profile(request, user_id: int):
     logger.info(f"Deleted JobSeekerProfile for user_id {user_id}.")
     return Response({"message": "Profile deleted successfully."}, status=status.HTTP_200_OK)
   
-from .services.aisensy import send_aisensy_message,AiSensyError,build_new_campaign_params,build_exam_details_params
-from rest_framework.views import APIView
-from rest_framework import status, permissions
 
 
 class WhatsAppSendView(APIView):

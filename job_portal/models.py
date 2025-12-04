@@ -1,5 +1,4 @@
 from django.db import models
-from student_management.models import *
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
@@ -17,7 +16,7 @@ class JobSeekerProfile(models.Model):
 
     ]
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='jobseeker_profile')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='jobseeker_profile',null=True, blank=True)
     resume = models.FileField(upload_to='resumes/', null=True, blank=True)
     work_status = models.CharField(max_length=20, choices=WORK_STATUS_CHOICES, blank=True, null=True)
     city=models.CharField(max_length=20, blank=True, null=True)
@@ -36,7 +35,7 @@ class JobSeekerEducation(models.Model):
         ("part_time", "Part Time"),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='educations')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='educations',null=True, blank=True)
     education_details = models.JSONField(default=list)
     key_skills = models.JSONField(default=list)
     created_at = models.DateTimeField(auto_now_add=True)  # Only this
@@ -49,7 +48,7 @@ class JobSeekerEducation(models.Model):
         db_table = 'jobseeker_education'
 
 class JobSeekerEmploymentDetails(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='employment_history')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='employment_history',null=True, blank=True)
     is_currently_employed = models.BooleanField(default=False)
     total_work_exp_years = models.IntegerField(default=0)
     total_work_exp_months = models.IntegerField(default=0)
@@ -77,7 +76,7 @@ class JobSeekerWorkPreferences(models.Model):
         ("other", "Other"),
     ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='work_preferences')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='work_preferences',null=True, blank=True)
     preferred_locations = models.JSONField(default=list, help_text="List of up to 10 preferred locations")
     preferred_salary = models.DecimalField(max_digits=10, decimal_places=2)
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
@@ -100,8 +99,8 @@ class JobSeekerApplication(models.Model):
         ("hired", "Hired"),
     ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='job_applications')
-    job_post = models.ForeignKey('JobPost', on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='job_applications',null=True, blank=True)
+    job_post = models.ForeignKey('JobPost', on_delete=models.CASCADE,null=True, blank=True)
     resume = models.FileField(upload_to='job_applications/', null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="applied")
     application_date = models.DateTimeField(auto_now_add=True)
@@ -146,6 +145,8 @@ class Job_Portal_AdditionalBenefit(models.Model):
 
     def __str__(self):
         return self.name
+    class Meta:
+        db_table = 'job_portal_additionalbenefit'
 
 
 class Job_Portal_Qualification(models.Model):
@@ -154,6 +155,10 @@ class Job_Portal_Qualification(models.Model):
 
     def __str__(self):
         return self.name
+    
+    class Meta:
+        db_table = 'job_portal_qualification' 
+    
 
 
 class Job_Portal_Department(models.Model):
@@ -162,6 +167,11 @@ class Job_Portal_Department(models.Model):
 
     def __str__(self):
         return self.name
+    
+    class Meta:
+        db_table = 'job_portal_department'
+    
+    
 
 
 class Job_Portal_RequiredSkill(models.Model):
@@ -170,6 +180,9 @@ class Job_Portal_RequiredSkill(models.Model):
 
     def __str__(self):
         return self.name
+    
+    class Meta:
+        db_table = 'job_portal_requiredskill'
 
 
 class Job_Portal_Language(models.Model):
@@ -178,6 +191,8 @@ class Job_Portal_Language(models.Model):
 
     def __str__(self):
         return self.name
+    class Meta:
+        db_table = 'job_portal_language'
 
 class Industry(models.Model):
     name = models.CharField(max_length=120, unique=True)
@@ -194,7 +209,7 @@ class Industry(models.Model):
 
 class JobPost(models.Model):
     company_name = models.CharField(max_length=250)
-    posted_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    posted_by = models.ForeignKey(User, on_delete=models.CASCADE,null=True,blank=True)
     job_title = models.CharField(max_length=255)
     job_location = models.CharField(max_length=255)
     min_experience = models.IntegerField(null=True, blank=True)

@@ -3,14 +3,13 @@ from django.contrib import admin
 from django.urls import path,include
 from django.conf import settings
 from django.conf.urls.static import static
-from .views import *
+
+from . import views
 
 
 from rest_framework_simplejwt.views import  TokenObtainPairView,TokenRefreshView
 urlpatterns = [
   path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-  path('login/',views.login_view,name="login" ),
-  
 
   # urls for job portal -----------------------------------------------------
   path("add_job_seeker_education/", views.add_job_seeker_education, name="add_job_seeker_education"),
@@ -26,14 +25,16 @@ urlpatterns = [
   path('register_job_seeker/', views.register_job_seeker, name='job-seeker-register'),
   path('authenticate_job_seeker/', views.authenticate_job_seeker,  name='job-seeker-login'),
   
-  
-  
-  
+
   path('apply_for_job/', views.apply_for_job, name='apply_for_job'),
   path('applications/<int:application_id>/resume/', views.view_application_resume, name='view-application-resume'),
   path('applications_status/<int:application_id>/', views.update_application_status, name='update-application-status'),
   path('applications/', views.get_job_applications, name='get-job-applications'),
   path('jobpost_update_status/<int:jobpost_id>/', views.update_jobpost_status),
+  path("get_applied_jobs_jobseeker/", views.get_applied_and_unapplied_jobs_jobseeker,name='get_applied_jobs_jobseeker'), 
+  path("get_all_jobs_with_application_status/", views.get_all_jobs_with_application_status,name='get_all_jobs_with_application_status'),
+  path("get_jobseeker_profile_details/",views.get_jobseeker_profile_details,name="get_jobseeker_profile_details",),
+
   
   
   #------------------------job portal master data--------------------------
@@ -59,6 +60,11 @@ urlpatterns = [
   # Department Master APIs
   path('departments/', views.jobport_department_list_create, name='jobport-department-list-create'),
   path('departments/<int:pk>/', views.jobport_department_detail, name='jobport-department-detail'),
-
   
+  path('industries/', views.industry_list, name='industry-list'),
+  path('industries/<int:pk>/', views.industry_detail, name='industry-detail'),
+  path('industries/create/', views.industry_create, name='industry-create'),
+  path('industries/update/<int:pk>/', views.industry_update, name='industry-update'),
+  path('industries/delete/<int:pk>/', views.industry_delete, name='industry-delete'),
+
 ]

@@ -29,8 +29,10 @@ urlpatterns = [
   path('create-user/',views.create_user,name="create_user" ),
   path('universities/', views.add_university, name='university_list'),  # For GET and POST
   path('universities/<int:university_id>/',views.university_detail,name='university_detail'),# For GET,PUT DELETE
-  path('universities-courses/', views.universities_with_courses, name='universities_with_courses'),
+  path('universities-with-courses/', views.universities_with_courses, name='universities_with_courses'),
   
+  
+  path('create-courses/', views.create_course, name='create_course'),
   
   path('create-semester-fees/',views.create_semester_fees,name="create_semester_fees" ),
   path('create-year-fees/', views.create_year_fees, name='create_year_fees'),
@@ -48,10 +50,16 @@ urlpatterns = [
   path('courses/', views.get_courses_by_university, name='get_courses_by_university'),
   path('streams/', views.get_stream_by_course_one, name='get_streams_by_course'),
   path('substreams/', views.get_substreams_by_university_course_stream, name='get_substreams_by_university_course_stream'),
-  path('student-registration/', views.student_registration, name='student_registration'),  
+  path('student-registration/', views.student_registration, name='student_registration'), 
+  path("bootstrap/student-register/", views.student_register_bootstrap, name="student-register-bootstrap"),
+  
+  
+  path("lead_bootstrap/", views.lead_bootstrap, name="lead-bootstrap"),
+  path("me/team-info/", views.my_team_info, name="me-team-info"),
+ 
   path('search-by-enrollment-id/', views.search_by_enrollment_id, name='search_by_enrollment_id'),
   path('search-by-student-name/', views.search_by_student_name, name='search_by_student_name'),
-  path('create-courses/', views.create_course, name='create_course'),
+  
   path('create-stream/', views.create_stream, name='create_stream'),
   path('create-substream/', views.create_sub_stream, name='create_sub_stream'),
   path('create-subject/', views.create_subject, name='create_subject'),
@@ -224,6 +232,7 @@ urlpatterns = [
   path('get_user/<int:user_id>/', views.get_user_by_id, name='get_user_by_id'),
   path('create_category/', views.create_category, name='create_category'),
   path('get_all_categories/', views.get_all_categories, name='get_all_categories'),
+
   path('update_category/<int:category_id>/', views.update_category, name='update_category'),
   path('delete_category/<int:category_id>/', views.delete_category, name='delete_category'),
   path('get_all_sources/', views.get_all_sources, name='get_all_sources'),
@@ -269,14 +278,18 @@ urlpatterns = [
   path("update_lead/<int:lead_id>/", views.update_lead, name="update_lead"),
   path("get_lead/<int:lead_id>/", views.get_lead_by_id, name="get_lead"),
   path("get_all_leads/", views.get_all_leads, name="get_all_leads"),
-
+  path('lead_status_count/', views.get_lead_count_by_status, name='get_lead_count_by_status'),
   path("filter_leads/", views.filter_leads, name="filter_leads"),
   path("search_leads_by_mobile/", views.search_leads_by_mobile, name="search_leads_by_mobile"),
+  path("leads/update_mobiles/<int:lead_id>/", views.update_lead_mobiles, name="update_lead_mobiles"),
+  path('edit_user/<int:user_id>/', views.update_user, name='update_user'),
 
   # path("leads/comments/<int:lead_id>/", views.get_lead_comments, name="get_lead_comments"),
   # path("leads/add_comment/<int:lead_id>/", views.create_lead_comment, name="create_lead_comment"),
-  path("leads/update_mobiles/<int:lead_id>/", views.update_lead_mobiles, name="update_lead_mobiles"),
-  path('edit_user/<int:user_id>/', views.update_user, name='update_user')
+  
+  #report_api
+  path("source_status_summary/", views.source_status_summary, name="source_status_summary"),
+  path("user_status_summary/", views.leads_user_status_summary, name="user_status_summary"),
   
   
 ]

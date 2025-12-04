@@ -3,6 +3,7 @@ from .models import *
 from django.contrib.auth import authenticate
 
 
+
 class UserSerializers(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -53,6 +54,40 @@ class UserLoginSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(errors)
         return attrs
     
+class RoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Role
+        fields = ['id', 'name', 'permissions', 'created_at', 'updated_at', 'is_active']
+        
+class SourceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Source
+        fields = "__all__"
+
+class CommonLeadLabelTagsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Common_Lead_Label_Tags
+        fields = "__all__"
+
+class CategoriesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Categories
+        fields = "__all__"
+
+class ColorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Color
+        fields = "__all__"
+
+class RoleStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RoleStatus
+        fields = "__all__"
+        
+class StatesSerializer(serializers.ModelSerializer):  # Add the 's'
+    class Meta:
+        model = States
+        fields = "__all__"
 
 class UniversitySerializer(serializers.ModelSerializer):
     class Meta:
@@ -199,7 +234,16 @@ class PaymentModesSerializer(serializers.ModelSerializer):
         model = PaymentModes
         fields = '__all__'  # You can specify fields explicitly if needed
         
-
+class CountriesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Countries
+        fields = ['id', 'shortname', 'name']
+        
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Categories
+        fields = ['id', 'name', 'status', 'created_at', 'updated_at']
+        
 class PaymentReceiptSerializer(serializers.ModelSerializer):
     fee_receipt_type = serializers.CharField(source="fee_reciept_type", allow_null=True)
     total_fees = serializers.CharField(source="semyearfees", allow_null=True)

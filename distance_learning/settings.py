@@ -29,21 +29,30 @@ ALLOWED_HOSTS = []
 
 
 # Application definition
+from .config import get_enabled_apps, get_auth_model
 
-INSTALLED_APPS = [
+# Base apps
+BASE_INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
-    'job_portal',
-    'student_management'
 ]
 
+# Add enabled apps
+INSTALLED_APPS = BASE_INSTALLED_APPS + get_enabled_apps()
+
+# Set auth model
+AUTH_USER_MODEL = get_auth_model()
+
+
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -54,6 +63,7 @@ MIDDLEWARE = [
 ]
 AUTH_USER_MODEL = 'student_management.User'
 ROOT_URLCONF = 'distance_learning.urls'
+CORS_ALLOW_ALL_ORIGINS = True # for development
 
 TEMPLATES = [
     {
@@ -80,7 +90,6 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'ciis',
-        # amazonq-ignore-next-line
         'USER': 'root',
         'PASSWORD': 'root',
         'HOST': 'localhost',
