@@ -143,7 +143,7 @@ urlpatterns = [
   path('delete_subject/<int:subject_id>/', views.delete_subject, name='delete_subject'),  
   
   path('substreams-withid/', views.get_substreams_with_id_by_university_course_stream, name='get_substreams_with_id_by_university_course_stream'),
-#---------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------
   path('list_of_all_registered_student/', views.list_of_all_registered_student, name='list_of_all_registered_student'), 
   
   path('list_of_all_cancelled_student/', views.list_of_all_cancelled_student, name='list_of_all_cancelled_student'),
@@ -156,7 +156,7 @@ urlpatterns = [
 
   path('get_subjects_by_stream/<int:stream_id>/', views.get_subjects_by_stream, name='get_subjects_by_stream'),
 
-
+#--------------------------------------------------------------------------------------------------------
 
   path('update-multiple-subjects/', views.update_multiple_subjects, name='update_multiple_subjects'),
   path('student-cancel/<int:id>/', views.register_cancel_student, name='register_cancel_student'),
@@ -180,7 +180,7 @@ urlpatterns = [
   path('get_university_reregistration/', views.get_university_reregistration, name='get_university_reregistration'),
   path('get_paid_fees/', views.get_paid_fees, name='get_paid_fees'),
 
-    path('save_single_answers/', views.save_single_question_answer, name='save_single_answers'),
+  path('save_single_answers/', views.save_single_question_answer, name='save_single_answers'),
 
   path('document-management/<int:enrollment_id>/',views.document_management, name='document_management'),
 
@@ -212,12 +212,13 @@ urlpatterns = [
   # path('colors/', views.list_colors, name='list_colors'),
   # path('colors-create/', views.create_color, name='create_color'),
   # path('colors-update/<int:pk>/', views.update_color, name='update_color'),
+  
   path('sync_answers/', views.sync_answers, name='sync_answers'),
   
   path('export_exam_data_to_excel/', views.export_exam_data_to_excel, name='export_exam_data_to_excel'),
   path('fetch_complete_student_data/', views.fetch_complete_student_data_api, name='fetch_complete_student_data'),
   path('view_all_assigned_students_api/', views.view_all_assigned_students_api, name='view_all_assigned_students_api'),
-#---------------------Role----------------------------------------------#
+#---------------------------------------  Role   ----------------------------------------------#
 
   path('get_roles/', views.get_roles, name='view_all_assigned_students_api'),
   path('create_role/', views.create_role, name='create_role'),
@@ -251,7 +252,6 @@ urlpatterns = [
   path('update_country/<int:country_id>/', views.update_country, name='update_country'),
   path('delete_country/<int:country_id>/', views.delete_country, name='delete_country'),
 
-
   path('states_new/', views.list_states, name='list_states'),
   path('states_new/create/', views.create_state, name='create_state'),
   path('states_new/<int:state_id>/update/', views.update_state, name='update_state'),
@@ -261,10 +261,8 @@ urlpatterns = [
   path('cities/create/', views.create_city, name='create_city'),
   path('cities/<int:city_id>/update/', views.update_city, name='update_city'),
   path('cities/<int:city_id>/delete/', views.delete_city, name='delete_city'),
-
   path("get_user_profile/", views.get_user_profile, name="get_user_profile"),
 
-  
   path('create_color/', views.create_color, name='create_color'),
   path('update_color/<int:color_id>/', views.update_color, name='update_color'),
   path('delete_color/<int:color_id>/', views.delete_color, name='delete_color'),
@@ -284,11 +282,9 @@ urlpatterns = [
   # path("leads/comments/<int:lead_id>/", views.get_lead_comments, name="get_lead_comments"),
   # path("leads/add_comment/<int:lead_id>/", views.create_lead_comment, name="create_lead_comment"),
   
-  #report_api
-  path("source_status_summary/", views.source_status_summary, name="source_status_summary"),
-  path("user_status_summary/", views.leads_user_status_summary, name="user_status_summary"),
   
-#-------------------------------------  {LEADS} ---------------------------------------------
+  
+#-------------------------------------   {LEADS}   ------------------------------------------------------
 #DASHBOARD
   path("get_all_leads/", views.get_all_leads, name="get_all_leads"),#also in list with paginator
   path('lead_status_count/', views.get_lead_count_by_status, name='get_lead_count_by_status'),
@@ -300,5 +296,8 @@ urlpatterns = [
   
 #REPORTS
   path('get_all_sources/', views.get_all_sources, name='get_all_sources'),
+  path("source_status_summary/", views.source_status_summary, name="source_status_summary"),
+  path("user_status_summary/", views.leads_user_status_summary, name="user_status_summary"),
+  
   
 ]
