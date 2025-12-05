@@ -20,10 +20,12 @@ from .config import is_feature_enabled
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    (path('api/', include('student_management.urls'))),
+    (path('api/', include('job_portal.urls')))
 ]
 
-if is_feature_enabled('student_management'):
-    urlpatterns.append(path('api/', include('student_management.urls')))
-if is_feature_enabled('job_portal'):
-    urlpatterns.append(path('api/', include('job_portal.urls')))
+# if is_feature_enabled('student_management'):
+#     urlpatterns.append(path('api/', include('student_management.urls')))
+# if is_feature_enabled('job_portal'):
+#     urlpatterns.append(path('api/', include('job_portal.urls')))
 

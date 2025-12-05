@@ -2502,103 +2502,6 @@ def _effective_permissions(user):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def lead_bootstrap(request):
-    """
-    ONE CALL for New Lead page dropdowns + permissions.
-    Response schema:
-    {
-      "data": {
-        "users": [...],
-        "sources": [...],
-        "lead_label_tags": [...],
-        "categories": [...],
-        "colors": [...],
-        "statuses": [...],
-        "countries": [...],
-        "states": [...],          # full list (frontend filters by country)
-        "universities": [...]
-      },
-      "permissions": { ... }      # effective permissions for current user
-    }
-    """
-    t0 = time.monotonic()
-    user = request.user
-    email = getattr(user, "email", str(user))
-
-    logger.info("[lead_bootstrap] START user=%s", email)
-
-    try:
-        payload = {"data": {}}
-
-        # ----- users (same logic as get_lead_user) -----
-        is_superuser = user.is_superuser
-        if is_superuser:
-            users_qs = User.objects.filter(
-                is_student=False, role__isnull=False, is_active=True,
-                role__permissions__contains={"leads_menu": "yes"}
-            )
-        else:
-            users_qs = User.objects.filter(
-                is_student=False, role__isnull=False, is_active=True,
-                role__permissions__contains={"leads_menu": "yes"}
-            ).filter(
-                Q(assigned_by=user) |
-                Q(assigned_by__assigned_by=user) |
-                Q(id=user.id)
-            )
-
-        with transaction.atomic():
-            # Users
-            payload["data"]["users"] = UserSerializers(users_qs, many=True).data
-
-            # Sources
-            sources = Source.objects.all()
-            payload["data"]["sources"] = SourceSerializer(sources, many=True).data
-
-            # Tags
-            tags = Common_Lead_Label_Tags.objects.all()
-            payload["data"]["lead_label_tags"] = CommonLeadLabelTagsSerializer(tags, many=True).data
-
-            # Categories
-            categories = Categories.objects.all()
-            payload["data"]["categories"] = CategoriesSerializer(categories, many=True).data
-
-            # Colors
-            colors = Color.objects.all()
-            payload["data"]["colors"] = ColorSerializer(colors, many=True).data
-
-            # Statuses
-            statuses = RoleStatus.objects.all()
-            payload["data"]["statuses"] = RoleStatusSerializer(statuses, many=True).data
-
-            # Countries & States (full lists; client filters by country)
-            countries = Countries.objects.all()
-            states = States.objects.all()
-            payload["data"]["countries"] = CountrySerializer(countries, many=True).data
-            payload["data"]["states"] = StatesSerializer(states, many=True).data
-
-            # Universities
-            universities = University.objects.all()
-            payload["data"]["universities"] = UniversitySerializer(universities, many=True).data
-
-        # Effective permissions for the logged-in user
-        payload["permissions"] = _effective_permissions(user)
-
-        dt = (time.monotonic() - t0) * 1000.0
-        logger.info(
-            "[lead_bootstrap] OK user=%s ms=%.1f", email, dt
-        )
-        return Response(payload, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        logger.exception("[lead_bootstrap] FAIL user=%s error=%s", email, str(e))
-        return Response(
-            {"error": "Internal server error while building lead bootstrap payload."},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
 def student_register_bootstrap(request):
     """
     ONE CALL: returns all dropdown data needed by Student Registration + permissions.
@@ -20501,59 +20404,6 @@ def filter_leads_by_status(request):
         return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_lead_user(request):
-    """
-    Get all users who are not students and have a non-null role with "leads_menu" permission.
-    Also filter users based on whether the user is a superuser.
-    """
-    try:
-        # Get the logged-in user
-        user = request.user
-        is_superuser = user.is_superuser
-        logger.info(f"User ID: {user.id}, User: {user.email}")
-
-        # Apply filters based on superuser status
-        if is_superuser:
-            # Superuser sees all users who are not students and have the role with leads_menu permission
-            users = User.objects.filter(
-                is_student=False,
-                role__isnull=False,
-                is_active=True,
-                role__permissions__contains={"leads_menu": "yes"}
-            )
-        else:
-            # Regular user sees:
-            # 1. Users assigned by them (assigned_by=user)
-            # 2. Users who are assigned to them directly (assigned_by__assigned_by=user)
-            # 3. Their own user ID (self)
-            users = User.objects.filter(
-                is_student=False,
-                role__isnull=False,
-                role__permissions__contains={"leads_menu": "yes"}
-            ).filter(
-                Q(assigned_by=user) |  # Users assigned by the logged-in user
-                Q(assigned_by__assigned_by=user) |  # Users assigned by the users that logged-in user assigned
-                Q(id=user.id)  # Include the logged-in user themselves
-            )
-
-        # Serialize the result
-        serializer = UserSerializers(users, many=True)
-        
-        # Return the response with user data
-        return Response(
-            {"success": True, "count": users.count(), "data": serializer.data},
-            status=status.HTTP_200_OK
-        )
-    
-    except Exception as e:
-        logger.error(f"Error fetching lead users: {str(e)}")
-        return Response(
-            {"success": False, "error": str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
-
 
 # def _parse_followup_date(val) -> date | None:
 #     """
@@ -21138,154 +20988,7 @@ class LeadPagination(PageNumberPagination):
     max_page_size = 1000
 
 #addeby ankit 29-08-2025
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_all_leads(request):
-    try:
-        user = request.user
-        is_superuser = user.is_superuser
 
-        def safe_value(val):
-            if val is None:
-                return ""
-            val_str = str(val).strip().lower()
-            if val_str in ["nan", "null"]:
-                return ""
-            return str(val).strip()
-
-        # --- optional owner filter
-        user_id_param = request.query_params.get("user_id")
-        user_id_filter = None
-        if user_id_param is not None and user_id_param != "":
-            try:
-                user_id_filter = int(user_id_param)
-            except (TypeError, ValueError):
-                return Response(
-                    {"success": False, "error": "user_id must be an integer"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        # Base queryset
-        leads = Leads.objects.select_related(
-            "owner", "co_owner", "lead_status", "lead_categories",
-            "lead_source", "lead_color", "university"
-        ).all().order_by('-created_at')
-
-        # Visibility (unchanged)
-        if not is_superuser:
-            leads = leads.filter(Q(owner=user) | Q(owner__assigned_by=user))
-
-        # Optional owner filter (by owner id)
-        if user_id_filter is not None:
-            leads = leads.filter(owner_id=user_id_filter)
-
-        paginator = LeadPagination()
-        paginated_leads = paginator.paginate_queryset(leads, request)
-        response_data = []
-
-        for lead in paginated_leads:
-            owner_name = lead.owner.first_name if lead.owner else ""
-            co_owner_name = lead.co_owner.first_name if lead.co_owner else ""
-            lead_status_name = lead.lead_status.name if lead.lead_status else ""
-            lead_category_name = lead.lead_categories.name if lead.lead_categories else ""
-
-            tag_ids = lead.common_lead_label_tags or []
-            tag_names = []
-            if isinstance(tag_ids, list) and tag_ids:
-                tag_names = list(
-                    Common_Lead_Label_Tags.objects
-                    .filter(id__in=tag_ids)
-                    .values_list("name", flat=True)
-                )
-
-            # University (safe)
-            university_data = None
-            if lead.university_id:
-                try:
-                    if lead.university and hasattr(lead.university, "university_name"):
-                        university_data = {
-                            "id": lead.university.id,
-                            "name": safe_value(lead.university.university_name),
-                        }
-                except (AttributeError, University.DoesNotExist):
-                    university_data = None
-                    logger.warning(f"University with ID {lead.university_id} not found for lead {lead.id}")
-
-            lead_data = {
-                "id": lead.id,
-                "first_name": safe_value(lead.first_name),
-                "last_name": safe_value(lead.last_name),
-                "landline": safe_value(lead.landline),
-                "mobile_one": safe_value(lead.mobile_one),
-                "mobile": safe_value(lead.mobile),
-                "mobile_two": safe_value(lead.mobile_two),
-                "mobile_three": safe_value(lead.mobile_three),
-                "email": safe_value(lead.email),
-                "email_one": safe_value(lead.email_one),
-                "email_two": safe_value(lead.email_two),
-                "email_three": safe_value(lead.email_three),
-
-                "owner": lead.owner_id,
-                "co_owner": lead.co_owner_id,
-                "owner_name": safe_value(owner_name),
-                "co_owner_name": safe_value(co_owner_name),
-
-                "lead_status": lead.lead_status_id,
-                "lead_status_name": safe_value(lead_status_name),
-
-                "lead_source": lead.lead_source_id,
-                "lead_source_name": safe_value(lead.lead_source.name) if lead.lead_source else "N/A",
-
-                "lead_categories": lead.lead_categories_id,
-                "lead_categories_name": safe_value(lead_category_name),
-
-                "lead_color": {
-                    "id": lead.lead_color.id,
-                    "name": safe_value(lead.lead_color.name),
-                    "color": safe_value(lead.lead_color.color),
-                } if lead.lead_color else None,
-
-                "common_lead_label_tags": tag_ids,
-                "common_lead_label_tag_names": [safe_value(name) for name in tag_names],
-
-                "lead_comments": lead.lead_comments or [],
-                "mobile_numbers": lead.mobile_numbers or {},
-                "email_addresses": lead.email_addresses or {},
-
-                "followup_date": lead.followup_date.strftime("%d-%m-%Y") if lead.followup_date else None,
-                "activity_log": lead.activity_log or [],
-                "created_at": lead.created_at.strftime("%d-%m-%Y") if lead.created_at else None,
-                "updated_at": lead.updated_at.strftime("%d-%m-%Y") if lead.updated_at else None,
-
-                "university": university_data,
-            }
-
-            try:
-                add = Leads_Addditional_Details.objects.select_related("state", "country").get(lead=lead)
-                lead_data["additional_details"] = {
-                    "company_name": safe_value(add.company_name),
-                    "address": safe_value(add.address),
-                    "branch_area": safe_value(add.branch_area),
-                    "city": safe_value(add.city),
-                    "state": {"id": add.state.id, "name": safe_value(add.state.name)} if add.state else None,
-                    "country": {"id": add.country.id, "name": safe_value(add.country.name)} if add.country else None,
-                    "created_at": add.created_at,
-                    "updated_at": add.updated_at,
-                }
-            except Leads_Addditional_Details.DoesNotExist:
-                lead_data["additional_details"] = None
-
-            response_data.append(lead_data)
-
-        logger.info(
-            f"Fetched {len(response_data)} leads successfully"
-            + (f" (owner user_id={user_id_filter})" if user_id_filter is not None else "")
-        )
-        return paginator.get_paginated_response(response_data)
-
-    except Exception as e:
-        logger.error(f"Error fetching leads: {str(e)}")
-        return Response({"success": False, "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -22652,6 +22355,9 @@ def bulk_upload_lead(request):
 #         department.delete()
 #         return Response({'message': 'Deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
+
+
+#############################  LEADS  MODULE   #####################################
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_lead_count_by_status(request):
@@ -22704,6 +22410,309 @@ def get_lead_count_by_status(request):
             "success": False,
             "error": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def lead_bootstrap(request):
+    """
+    ONE CALL for New Lead page dropdowns + permissions.
+    Response schema:
+    {
+      "data": {
+        "users": [...],
+        "sources": [...],
+        "lead_label_tags": [...],
+        "categories": [...],
+        "colors": [...],
+        "statuses": [...],
+        "countries": [...],
+        "states": [...],          # full list (frontend filters by country)
+        "universities": [...]
+      },
+      "permissions": { ... }      # effective permissions for current user
+    }
+    """
+    t0 = time.monotonic()
+    user = request.user
+    email = getattr(user, "email", str(user))
+
+    logger.info("[lead_bootstrap] START user=%s", email)
+
+    try:
+        payload = {"data": {}}
+
+        # ----- users (same logic as get_lead_user) -----
+        is_superuser = user.is_superuser
+        if is_superuser:
+            users_qs = User.objects.filter(
+                is_student=False, role__isnull=False, is_active=True,
+                role__permissions__contains={"leads_menu": "yes"}
+            )
+        else:
+            users_qs = User.objects.filter(
+                is_student=False, role__isnull=False, is_active=True,
+                role__permissions__contains={"leads_menu": "yes"}
+            ).filter(
+                Q(assigned_by=user) |
+                Q(assigned_by__assigned_by=user) |
+                Q(id=user.id)
+            )
+
+        with transaction.atomic():
+            # Users
+            payload["data"]["users"] = UserSerializers(users_qs, many=True).data
+
+            # Sources
+            sources = Source.objects.all()
+            payload["data"]["sources"] = SourceSerializer(sources, many=True).data
+
+            # Tags
+            tags = Common_Lead_Label_Tags.objects.all()
+            payload["data"]["lead_label_tags"] = CommonLeadLabelTagsSerializer(tags, many=True).data
+
+            # Categories
+            categories = Categories.objects.all()
+            payload["data"]["categories"] = CategoriesSerializer(categories, many=True).data
+
+            # Colors
+            colors = Color.objects.all()
+            payload["data"]["colors"] = ColorSerializer(colors, many=True).data
+
+            # Statuses
+            statuses = RoleStatus.objects.all()
+            payload["data"]["statuses"] = RoleStatusSerializer(statuses, many=True).data
+
+            # Countries & States (full lists; client filters by country)
+            countries = Countries.objects.all()
+            states = States.objects.all()
+            payload["data"]["countries"] = CountrySerializer(countries, many=True).data
+            payload["data"]["states"] = StatesSerializer(states, many=True).data
+
+            # Universities
+            universities = University.objects.all()
+            payload["data"]["universities"] = UniversitySerializer(universities, many=True).data
+
+        # Effective permissions for the logged-in user
+        payload["permissions"] = _effective_permissions(user)
+
+        dt = (time.monotonic() - t0) * 1000.0
+        logger.info(
+            "[lead_bootstrap] OK user=%s ms=%.1f", email, dt
+        )
+        return Response(payload, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.exception("[lead_bootstrap] FAIL user=%s error=%s", email, str(e))
+        return Response(
+            {"error": "Internal server error while building lead bootstrap payload."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_all_leads(request):
+    try:
+        user = request.user
+        is_superuser = user.is_superuser
+
+        def safe_value(val):
+            if val is None:
+                return ""
+            val_str = str(val).strip().lower()
+            if val_str in ["nan", "null"]:
+                return ""
+            return str(val).strip()
+
+        # --- optional owner filter
+        user_id_param = request.query_params.get("user_id")
+        user_id_filter = None
+        if user_id_param is not None and user_id_param != "":
+            try:
+                user_id_filter = int(user_id_param)
+            except (TypeError, ValueError):
+                return Response(
+                    {"success": False, "error": "user_id must be an integer"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Base queryset
+        leads = Leads.objects.select_related(
+            "owner", "co_owner", "lead_status", "lead_categories",
+            "lead_source", "lead_color", "university"
+        ).all().order_by('-created_at')
+
+        # Visibility (unchanged)
+        if not is_superuser:
+            leads = leads.filter(Q(owner=user) | Q(owner__assigned_by=user))
+
+        # Optional owner filter (by owner id)
+        if user_id_filter is not None:
+            leads = leads.filter(owner_id=user_id_filter)
+
+        paginator = LeadPagination()
+        paginated_leads = paginator.paginate_queryset(leads, request)
+        response_data = []
+
+        for lead in paginated_leads:
+            owner_name = lead.owner.first_name if lead.owner else ""
+            co_owner_name = lead.co_owner.first_name if lead.co_owner else ""
+            lead_status_name = lead.lead_status.name if lead.lead_status else ""
+            lead_category_name = lead.lead_categories.name if lead.lead_categories else ""
+
+            tag_ids = lead.common_lead_label_tags or []
+            tag_names = []
+            if isinstance(tag_ids, list) and tag_ids:
+                tag_names = list(
+                    Common_Lead_Label_Tags.objects
+                    .filter(id__in=tag_ids)
+                    .values_list("name", flat=True)
+                )
+
+            # University (safe)
+            university_data = None
+            if lead.university_id:
+                try:
+                    if lead.university and hasattr(lead.university, "university_name"):
+                        university_data = {
+                            "id": lead.university.id,
+                            "name": safe_value(lead.university.university_name),
+                        }
+                except (AttributeError, University.DoesNotExist):
+                    university_data = None
+                    logger.warning(f"University with ID {lead.university_id} not found for lead {lead.id}")
+
+            lead_data = {
+                "id": lead.id,
+                "first_name": safe_value(lead.first_name),
+                "last_name": safe_value(lead.last_name),
+                "landline": safe_value(lead.landline),
+                "mobile_one": safe_value(lead.mobile_one),
+                "mobile": safe_value(lead.mobile),
+                "mobile_two": safe_value(lead.mobile_two),
+                "mobile_three": safe_value(lead.mobile_three),
+                "email": safe_value(lead.email),
+                "email_one": safe_value(lead.email_one),
+                "email_two": safe_value(lead.email_two),
+                "email_three": safe_value(lead.email_three),
+
+                "owner": lead.owner_id,
+                "co_owner": lead.co_owner_id,
+                "owner_name": safe_value(owner_name),
+                "co_owner_name": safe_value(co_owner_name),
+
+                "lead_status": lead.lead_status_id,
+                "lead_status_name": safe_value(lead_status_name),
+
+                "lead_source": lead.lead_source_id,
+                "lead_source_name": safe_value(lead.lead_source.name) if lead.lead_source else "N/A",
+
+                "lead_categories": lead.lead_categories_id,
+                "lead_categories_name": safe_value(lead_category_name),
+
+                "lead_color": {
+                    "id": lead.lead_color.id,
+                    "name": safe_value(lead.lead_color.name),
+                    "color": safe_value(lead.lead_color.color),
+                } if lead.lead_color else None,
+
+                "common_lead_label_tags": tag_ids,
+                "common_lead_label_tag_names": [safe_value(name) for name in tag_names],
+
+                "lead_comments": lead.lead_comments or [],
+                "mobile_numbers": lead.mobile_numbers or {},
+                "email_addresses": lead.email_addresses or {},
+
+                "followup_date": lead.followup_date.strftime("%d-%m-%Y") if lead.followup_date else None,
+                "activity_log": lead.activity_log or [],
+                "created_at": lead.created_at.strftime("%d-%m-%Y") if lead.created_at else None,
+                "updated_at": lead.updated_at.strftime("%d-%m-%Y") if lead.updated_at else None,
+
+                "university": university_data,
+            }
+
+            try:
+                add = Leads_Addditional_Details.objects.select_related("state", "country").get(lead=lead)
+                lead_data["additional_details"] = {
+                    "company_name": safe_value(add.company_name),
+                    "address": safe_value(add.address),
+                    "branch_area": safe_value(add.branch_area),
+                    "city": safe_value(add.city),
+                    "state": {"id": add.state.id, "name": safe_value(add.state.name)} if add.state else None,
+                    "country": {"id": add.country.id, "name": safe_value(add.country.name)} if add.country else None,
+                    "created_at": add.created_at,
+                    "updated_at": add.updated_at,
+                }
+            except Leads_Addditional_Details.DoesNotExist:
+                lead_data["additional_details"] = None
+
+            response_data.append(lead_data)
+
+        logger.info(
+            f"Fetched {len(response_data)} leads successfully"
+            + (f" (owner user_id={user_id_filter})" if user_id_filter is not None else "")
+        )
+        return paginator.get_paginated_response(response_data)
+
+    except Exception as e:
+        logger.error(f"Error fetching leads: {str(e)}")
+        return Response({"success": False, "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_lead_user(request):
+    """
+    Get all users who are not students and have a non-null role with "leads_menu" permission.
+    Also filter users based on whether the user is a superuser.
+    """
+    try:
+        # Get the logged-in user
+        user = request.user
+        is_superuser = user.is_superuser
+        logger.info(f"User ID: {user.id}, User: {user.email}")
+
+        # Apply filters based on superuser status
+        if is_superuser:
+            # Superuser sees all users who are not students and have the role with leads_menu permission
+            users = User.objects.filter(
+                is_student=False,
+                role__isnull=False,
+                is_active=True,
+                role__permissions__contains={"leads_menu": "yes"}
+            )
+        else:
+            # Regular user sees:
+            # 1. Users assigned by them (assigned_by=user)
+            # 2. Users who are assigned to them directly (assigned_by__assigned_by=user)
+            # 3. Their own user ID (self)
+            users = User.objects.filter(
+                is_student=False,
+                role__isnull=False,
+                role__permissions__contains={"leads_menu": "yes"}
+            ).filter(
+                Q(assigned_by=user) |  # Users assigned by the logged-in user
+                Q(assigned_by__assigned_by=user) |  # Users assigned by the users that logged-in user assigned
+                Q(id=user.id)  # Include the logged-in user themselves
+            )
+
+        # Serialize the result
+        serializer = UserSerializers(users, many=True)
+        
+        # Return the response with user data
+        return Response(
+            {"success": True, "count": users.count(), "data": serializer.data},
+            status=status.HTTP_200_OK
+        )
+    
+    except Exception as e:
+        logger.error(f"Error fetching lead users: {str(e)}")
+        return Response(
+            {"success": False, "error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q

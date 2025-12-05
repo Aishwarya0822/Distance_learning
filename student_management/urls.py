@@ -54,8 +54,7 @@ urlpatterns = [
   path("bootstrap/student-register/", views.student_register_bootstrap, name="student-register-bootstrap"),
   
   
-  path("lead_bootstrap/", views.lead_bootstrap, name="lead-bootstrap"),
-  path("me/team-info/", views.my_team_info, name="me-team-info"),
+ 
  
   path('search-by-enrollment-id/', views.search_by_enrollment_id, name='search_by_enrollment_id'),
   path('search-by-student-name/', views.search_by_student_name, name='search_by_student_name'),
@@ -235,7 +234,7 @@ urlpatterns = [
 
   path('update_category/<int:category_id>/', views.update_category, name='update_category'),
   path('delete_category/<int:category_id>/', views.delete_category, name='delete_category'),
-  path('get_all_sources/', views.get_all_sources, name='get_all_sources'),
+  
   path('create_source/', views.create_source, name='create_source'),
   path('update_source/<int:source_id>/', views.update_source, name='update_source'),
   path('delete_source/<int:source_id>/', views.delete_source, name='delete_source'),
@@ -265,7 +264,7 @@ urlpatterns = [
 
   path("get_user_profile/", views.get_user_profile, name="get_user_profile"),
 
-  path('get_all_colors/', views.get_all_colors, name='get_all_colors'),
+  
   path('create_color/', views.create_color, name='create_color'),
   path('update_color/<int:color_id>/', views.update_color, name='update_color'),
   path('delete_color/<int:color_id>/', views.delete_color, name='delete_color'),
@@ -274,11 +273,9 @@ urlpatterns = [
 
   path("role_status_list/", views.role_status_list, name="role_status_list"),
   path("filter_leads_by_status/", views.filter_leads_by_status, name="filter_leads_by_status"),
-  path("get_lead_user/", views.get_lead_user, name="get_lead_user"),
+  
   path("update_lead/<int:lead_id>/", views.update_lead, name="update_lead"),
   path("get_lead/<int:lead_id>/", views.get_lead_by_id, name="get_lead"),
-  path("get_all_leads/", views.get_all_leads, name="get_all_leads"),
-  path('lead_status_count/', views.get_lead_count_by_status, name='get_lead_count_by_status'),
   path("filter_leads/", views.filter_leads, name="filter_leads"),
   path("search_leads_by_mobile/", views.search_leads_by_mobile, name="search_leads_by_mobile"),
   path("leads/update_mobiles/<int:lead_id>/", views.update_lead_mobiles, name="update_lead_mobiles"),
@@ -291,5 +288,17 @@ urlpatterns = [
   path("source_status_summary/", views.source_status_summary, name="source_status_summary"),
   path("user_status_summary/", views.leads_user_status_summary, name="user_status_summary"),
   
+#-------------------------------------  {LEADS} ---------------------------------------------
+#DASHBOARD
+  path("get_all_leads/", views.get_all_leads, name="get_all_leads"),#also in list with paginator
+  path('lead_status_count/', views.get_lead_count_by_status, name='get_lead_count_by_status'),
+  path("get_lead_user/", views.get_lead_user, name="get_lead_user"),
+  path('get_all_colors/', views.get_all_colors, name='get_all_colors'),
+#LIST
+  path("lead_bootstrap/", views.lead_bootstrap, name="lead-bootstrap"),
+  path("me/team-info/", views.my_team_info, name="me-team-info"),
+  
+#REPORTS
+  path('get_all_sources/', views.get_all_sources, name='get_all_sources'),
   
 ]

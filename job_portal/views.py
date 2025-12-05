@@ -12,6 +12,7 @@ from django.contrib.auth.hashers import check_password
 from django.core.mail import send_mail 
 from django.utils import timezone
 from .models import *
+from student_management.models import *
 from .serializers import *
 from rest_framework.decorators import api_view, permission_classes,parser_classes
 from io import BytesIO  
@@ -254,8 +255,8 @@ def update_application_status(request, application_id):
     try:
         # Get application
         try:
-            application = JobApplication.objects.get(id=application_id)
-        except JobApplication.DoesNotExist:
+            application = JobSeekerApplication.objects.get(id=application_id)
+        except JobSeekerApplication.DoesNotExist:
             return Response({"error": "Application not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Check if user is HR and owns the job post
@@ -289,18 +290,18 @@ def get_job_applications(request):
     try:
         if request.user.role.name == 'HR':
             # HR can see all applications for their job posts
-            applications = JobApplication.objects.filter(
+            applications = JobSeekerApplication.objects.filter(
                 job_post__posted_by=request.user
             ).order_by('-application_date')
             serializer = JobApplicationHRSerializer(applications, many=True)
         else:
             try:
-                job_seeker = JobSeeker.objects.get(email=request.user.email)
-            except JobSeeker.DoesNotExist:
+                job_seeker = JobSeekerProfile.objects.get(email=request.user.email)
+            except JobSeekerProfile.DoesNotExist:
                 return Response({"error": "Job seeker profile not found"}, 
                               status=status.HTTP_404_NOT_FOUND)
                 
-            applications = JobApplication.objects.filter(
+            applications = JobSeekerApplication.objects.filter(
                 job_seeker=job_seeker
             ).order_by('-application_date')
             serializer = JobApplicationSerializer(applications, many=True)
